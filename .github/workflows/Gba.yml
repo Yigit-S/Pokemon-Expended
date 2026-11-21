@@ -1,0 +1,51 @@
+name: Build ROM
+
+# Kendi fork'unda ROM uretir. Orijinal ROM ile hash karsilastirmasi yapmaz
+# (COMPARE=0), bu yuzden Fairy tipi gibi degisikliklerde basarisiz olmaz.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        game: [FIRERED, LEAFGREEN]
+    env:
+      GAME_VERSION: ${{ matrix.game }}
+      GAME_LANGUAGE: ENGLISH
+      GAME_REVISION: 0
+      MODERN: 0
+      COMPARE: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout agbcc
+        uses: actions/checkout@v4
+        with:
+          path: agbcc
+          repository: pret/agbcc
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils-arm-none-eabi gcc-arm-none-eabi libpng-dev
+
+      - name: Build and install agbcc
+        working-directory: ./agbcc
+        run: |
+          ./build.sh
+          ./install.sh ../
+
+      - name: Build ROM
+        run: make -j"$(nproc)"
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-${{ matrix.game }}
+          path: "*.gba"
+          if-no-files-found: error
