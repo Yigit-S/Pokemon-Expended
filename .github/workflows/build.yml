@@ -1,2 +1,49 @@
+name: Build ROM
 
-          
+# pokeemerald-expansion fork'unda ROM derler ve .gba dosyasini
+# Artifacts bolumune yukler. Her push'ta ve elle calisir.
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  GAME_REVISION: 0
+  GAME_LANGUAGE: ENGLISH
+  COMPARE: 0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: emerald
+            make_target: all
+            game_version: EMERALD
+          - name: firered
+            make_target: firered
+            game_version: EMERALD
+          - name: leafgreen
+            make_target: leafgreen
+            game_version: EMERALD
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev python3
+
+      - name: Build ROM (${{ matrix.name }})
+        env:
+          GAME_VERSION: ${{ matrix.game_version }}
+        run: make ${{ matrix.make_target }} -j"$(nproc)" -O
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-${{ matrix.name }}
+          path: "*.gba"
+          if-no-files-found: error
